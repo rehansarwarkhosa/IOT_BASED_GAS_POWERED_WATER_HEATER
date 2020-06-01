@@ -1,0 +1,13 @@
+Arduino IDE is required to open this code and the 
+code cannot run without installing external libraries.
+
+Arduino IDE is not providing simulation so hardware
+ must be attached with USB cable.
+ 
+Development Board:      NodeMCU V3  4 MB Flash
+
+Arduino IDE Link:
+https://www.arduino.cc/en/main/software
+
+Add NodeMCU ESP8266 to Arduino IDE with this link:
+http://arduino.esp8266.com/stable/package_esp8266com_index.json

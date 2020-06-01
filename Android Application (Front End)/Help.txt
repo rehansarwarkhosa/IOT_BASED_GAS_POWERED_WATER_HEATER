@@ -1,0 +1,5 @@
+Android project that was not uploading directly because there are too many 
+files in the project. So that's why it was combined with winrar.
+
+Hardware that produces wifi signals. Before using the Android application, 
+the mobile phone must be connected to Geyser's wifi.
