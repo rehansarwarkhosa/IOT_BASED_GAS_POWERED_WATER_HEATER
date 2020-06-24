@@ -1,11 +1,16 @@
 #include <EEPROM.h>
 
 const byte SOLENOID_COIL_PIN = 16;
-const byte SENSOR_WARNING_PIN = 0; //LED
+const byte SENSOR_WARNING_PIN = 0; //LED //BUZZER
+
+const byte GAS_SENSING_PIN = 14;
+byte re_sense_gas_delay = 0;
+boolean closed_due_to_gas = false;
+
 boolean force_on = false;
 boolean is_start_by_schedule = false;
 
-const String CSS = "<style> body { margin:0; } a { background-color: #FFD700; border: none; color: black; padding: 15px 32px; text-align: center; text-decoration: none; display: inline-block; font-size: 22pt; margin: 4px 2px; cursor: pointer; font-family: 'Muli', sans-serif; width: 250px; } h1 { font-weight:bold; text-shadow: 0 -3px rgba(0,0,0,0.6); font-size: 42pt; background: #00008B; border: 1px solid #fff; padding: 5px 15px; color: white; border-radius: 0 10px 0 10px; font-family: 'Muli', sans-serif; } .footer { font-weight:bold; text-shadow: 0 -3px rgba(0,0,0,0.6); font-size: 22pt; background: #00008B; border: 1px solid #fff; padding: 5px 15px; color: white; border-radius: 0 10px 0 10px; font-family: 'Muli', sans-serif; position: fixed; left: 0; bottom: 0; width: 100%; margin-bottom: 0; } #info{ border: none; font-weight: bold; padding: 15px 32px; text-align: center; text-decoration: none; display: inline-block; font-size: 22pt; margin: 4px 2px; cursor: pointer; font-family: 'Muli', sans-serif; } #table-heading { background-color: black; color: white; font-size: 22pt; font-family: 'Muli', sans-serif; padding: 5px 15px; } #table-content{ background-color: #e7e7e7; color: black; font-size: 22pt; font-family: 'Muli', sans-serif; padding: 5px 15px; text-align: center; } #entry-form{ font-size: 25pt; font-family: 'Muli', sans-serif; padding: 5px 15px; margin: 10px; font-weight: bold; } </style>";
+const String CSS = "<style> body { margin:0; } a { background: linear-gradient(to top, #ffffcc 0%, #ffff00 100%); border: none; color: black; padding: 15px 32px; text-align: center; text-decoration: none; display: inline-block; font-size: 22pt; margin: 4px 2px; cursor: pointer; font-family: 'Muli', sans-serif; width: 250px; } h1 { font-weight:bold; text-shadow: 0 -3px rgba(0,0,0,0.6); font-size: 42pt; background: linear-gradient(to bottom, #33ccff 0%, #000099 100%); height: 100px; border: 1px solid #fff; padding: 5px 15px; color: white; border-radius: 0 10px 0 10px; font-family: 'Muli', sans-serif; } .footer { font-weight:bold; text-shadow: 0 -3px rgba(0,0,0,0.6); font-size: 22pt; background: linear-gradient(to top, #33ccff 0%, #000099 100%); border: 1px solid #fff; padding: 5px 15px; color: white; border-radius: 0 10px 0 10px; font-family: 'Muli', sans-serif; position: fixed; left: 0; bottom: 0; width: 100%; margin-bottom: 0; } #info{ border: none; font-weight: bold; padding: 15px 32px; text-align: center; text-decoration: none; display: inline-block; font-size: 22pt; margin: 4px 2px; cursor: pointer; font-family: 'Muli', sans-serif; } #table-heading { background-color: #0000cc; color: white; font-size: 22pt; font-family: 'Muli', sans-serif; padding: 5px 15px; } #table-content{ background-color: #e7e7e7; color: black; font-size: 22pt; font-family: 'Muli', sans-serif; padding: 5px 15px; text-align: center; } #entry-form{ font-size: 25pt; font-family: 'Muli', sans-serif; padding: 5px 15px; margin: 10px; font-weight: bold; } </style>";
 const String NAVIGATION_HOME = "<table width='100%'> <tr><td></td><td><a href=\"http://192.168.4.1/\" style='border: 2px solid black;'>Home</a> </td> <td> <a href=\"http://192.168.4.1/http_set_temperature\">Set Temperature</a> </td> <td> <a href=\"http://192.168.4.1/http_new_schedule\">New Schedule</a> </td> </tr> </table>";
 const String NAVIGATION_SET_TEMPERATURE= "<table width='100%'><tr><td></td><td> <a href=\"http://192.168.4.1/\">Home</a></td><td><a style='border: 2px solid black;' href=\"http://192.168.4.1/http_set_temperature\">Set Temperature</a> </td> <td> <a href=\"http://192.168.4.1/http_new_schedule\">New Schedule</a> </td> </tr> </table>";
 const String NAVIGATION_NEW_SCHEDULE = "<table width='100%'> <tr><td></td><td><a href=\"http://192.168.4.1/\">Home</a> </td><td><a href=\"http://192.168.4.1/http_set_temperature\">Set Temperature</a> </td> <td> <a style='border: 2px solid black;' href=\"http://192.168.4.1/http_new_schedule\">New Schedule</a> </td> </tr> </table>";
@@ -19,9 +24,9 @@ const String BODY_CLOSE = "</body>";
 const String HEAD_OPEN = "<head>";
 const String HEAD_CLOSE = "</head>";
 const String TEMPERATURE_INPUT_FORM = "<div style=\"background-color:#DCDCDC; padding: 50px;\"> <form method=\"GET\" action=\"http://192.168.4.1/\"> <table> <tr> <input type=\"hidden\" name=\"m\" value=\"t\"> <td><p id=\"entry-form\">Temperature:</p></td> <td><input id=\"entry-form\" type=\"number\" name=\"temperature\"></td> </tr> <tr> <td></td> <td><input id=\"entry-form\" type=\"submit\" value=\"Set\"></td> </tr> </table> </form> </div>";
-const String SCHEDULE_INPUT_FORM = "<div style=\"background-color:#DCDCDC; padding: 50px;\"> <form method=\"GET\" action=\"http://192.168.4.1/\"> <table> <tr> <input type=\"hidden\" name=\"m\" value=\"c\"> <td><p id=\"entry-form\">Start time hour(s):</p></td> <td><input id=\"entry-form\" type=\"number\" name=\"sth\"></td> </tr> <tr> <td><p id=\"entry-form\">Start time minute(s):</p></td> <td><input id=\"entry-form\" type=\"number\" name=\"stm\"></td> </tr> <tr> <td><p id=\"entry-form\">End time hour(s):</p></td> <td><input id=\"entry-form\" type=\"number\" name=\"eth\"></td> </tr> <tr> <td><p id=\"entry-form\">Start time minute(s):</p></td> <td><input id=\"entry-form\" type=\"number\" name=\"etm\"></td> </tr> <tr> <td><p id=\"entry-form\">Day (0-7):</p></td> <td><input id=\"entry-form\" type=\"number\" name=\"day\"></td> </tr> <tr> <td></td> <td><input id=\"entry-form\" type=\"submit\" value=\"Save\"></td> </tr> </table> </form> </div>";
+const String SCHEDULE_INPUT_FORM = "<div style=\"background-color:#DCDCDC; padding: 50px;\"> <form method=\"GET\" action=\"http://192.168.4.1/\"> <table> <tr> <input type=\"hidden\" name=\"m\" value=\"c\"> <td><p id=\"entry-form\">Start hour:</p></td> <td><input id=\"entry-form\" type=\"number\" name=\"sth\"></td> </tr> <tr> <td><p id=\"entry-form\">Start minute:</p></td> <td><input id=\"entry-form\" type=\"number\" name=\"stm\"></td> </tr> <tr> <td><p id=\"entry-form\">End hour:</p></td> <td><input id=\"entry-form\" type=\"number\" name=\"eth\"></td> </tr> <tr> <td><p id=\"entry-form\">Start minute:</p></td> <td><input id=\"entry-form\" type=\"number\" name=\"etm\"></td> </tr> <tr> <td><p id=\"entry-form\">Day (0-7):</p></td> <td><input id=\"entry-form\" type=\"number\" name=\"day\"></td> </tr> <tr> <td></td> <td><input id=\"entry-form\" type=\"submit\" value=\"Save\"></td> </tr> </table> </form> </div>";
 const String HEADER = "<h1>Gas-Powered Water Heater</h1>";
-const String FORCE_ON_OFF = "<table width='100%'> <tr> <td> <a style=\"width: 85%; background-color:#FFA07A;\" href=\"http://192.168.4.1?m=s&switch=0\">OFF</a> </td> <td> <a style=\"width: 85%; background-color: #90EE90;\" href=\"http://192.168.4.1?m=s&switch=1\">ON</a> </td> </tr> </table>";
+const String FORCE_ON_OFF = "<table width='100%'> <tr> <td> <a style=\"width: 85%; background: linear-gradient(to bottom, #ff0000 0%, #ff99cc 100%);\" href=\"http://192.168.4.1?m=s&switch=0\"><b>OFF</b></a> </td> <td> <a style=\"width: 85%; background: linear-gradient(to bottom, #009900 0%, #00ff99 100%);\" href=\"http://192.168.4.1?m=s&switch=1\"><b>ON</b></a> </td> </tr> </table>";
 //-----------------WiFi------------------------------------------------
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
@@ -374,11 +379,48 @@ byte get_day_of_the_week_from_RTC() {
 
 void switch_on() {
   digitalWrite(SOLENOID_COIL_PIN, HIGH);
+  delay(9000);
 }
 
 void switch_off() {
   digitalWrite(SOLENOID_COIL_PIN, LOW);
 }
+
+void sense_gas(){
+
+  //boolean state_force_on = force_on;
+  //boolean state_is_start_by_schedule = is_start_by_schedule;
+
+if(!closed_due_to_gas){
+  
+  if(force_on == true || is_start_by_schedule == true)
+  {
+    if(digitalRead(GAS_SENSING_PIN) == HIGH)
+    {
+      switch_off();
+      closed_due_to_gas = true;       
+    }
+  }
+  
+}
+
+
+if(closed_due_to_gas){
+  re_sense_gas_delay++;
+
+  if(re_sense_gas_delay >=50)
+  {
+    if(force_on)
+    {
+      switch_on();
+    }
+    closed_due_to_gas = false;
+    re_sense_gas_delay = 0;
+  }
+}
+  
+}// End Sense_Gas
+
 
 DateTime get_current_date_and_time_from_RTC(){
   return rtc.now();
@@ -458,13 +500,14 @@ String http_dashboard(){
 }
 
 String http_schedule_list(){
-  String content =  "<table width='100%'>" +
+  String content =  "<marquee><p style='color: Gray; font-size: 22pt;'><b>Day-0:</b> Monday, <b>Day-1:</b> Tuesday, <b>Day-2:</b> Wednesday, <b>Day-3:</b> Thursday, <b>Day-4:</b> Friday, <b>Day-5:</b> Saturday, <b>Day-6:</b> Sunday, <b>Day-7:</b> Everyday</p></marquee>" +
+          String("<table width='100%'>") +
           String("<tr>") +
-          "<td><p id=\"table-heading\">Start time hour(s)</p></td>" +
-          "<td><p id=\"table-heading\">Start time minute(s)</p></td>" +
-          "<td><p id=\"table-heading\">End time hour(s)</p></td>" +
-          "<td><p id=\"table-heading\">End time minute(s)</p></td>" +
-          "<td><p id=\"table-heading\">Day (0-7)</p></td>" +
+          "<td><p id=\"table-heading\">Start Hour</p></td>" +
+          "<td><p id=\"table-heading\">Start Minute</p></td>" +
+          "<td><p id=\"table-heading\">End Hour</p></td>" +
+          "<td><p id=\"table-heading\">End Minute</p></td>" +
+          "<td><p id=\"table-heading\">Day &nbsp;&nbsp;(0-7)</p></td>" +
           "<td></td>" +
           "</tr>";
 
@@ -496,7 +539,7 @@ String http_schedule_list(){
       content += dummySchedule.Day;
       content += "</p></td>";
 
-      content += "<td><a style=\"background-color: #f44336; color: white; width: 100px;\" href='http://192.168.4.1?m=r&"+ String("sth=") + dummySchedule.STH + "&stm=" + dummySchedule.STM + "&eth=" + dummySchedule.ETH + "&etm=" + dummySchedule.ETM + "&day=" + dummySchedule.Day + "'>Delete</a></td>";
+      content += "<td><a style=\"background: linear-gradient(to bottom, #ff3300 0%, #ff5050 100%); color: white; width: 100px;\" href='http://192.168.4.1?m=r&"+ String("sth=") + dummySchedule.STH + "&stm=" + dummySchedule.STM + "&eth=" + dummySchedule.ETH + "&etm=" + dummySchedule.ETM + "&day=" + dummySchedule.Day + "'>Delete</a></td>";
       content += "</tr>";
     }
   }
@@ -540,11 +583,13 @@ void handleRoot() {
   } else if (server.arg(0).equals("s")) {
 
     if (server.arg(1).toInt() == 1) {
-      switch_on();
-      force_on = true;
+      if(!closed_due_to_gas){
+        force_on = true;
+        switch_on();
+      }
     } else {
-      switch_off();
       force_on = false;
+      switch_off();
     }
 
   } else if (server.arg(0).equals("t")) {
@@ -597,6 +642,7 @@ void setup() {
   sensors.begin();  //Start to listen the temprature sensor
   delay(100);
 
+  pinMode(GAS_SENSING_PIN, INPUT);
 
   pinMode(SENSOR_WARNING_PIN, OUTPUT);
   digitalWrite(SENSOR_WARNING_PIN, LOW);
@@ -662,8 +708,16 @@ void loop() {
   //print_current_date_and_time_from_RTC();
 
   //Serial.println("\n------Operation() start");
-  operation();
+  delay(100);
+
+   sense_gas();
   //Serial.println("------Operation() end\n");
+
+  delay(100);
+
+  if(!closed_due_to_gas){
+    operation();
+  }
 
   delay(100);
 }
